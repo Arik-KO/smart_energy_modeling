@@ -1,0 +1,24 @@
+target: demand
+architecture: lstm
+strategy: dayblock_recursive
+window_hours: 672
+model_params:
+  hidden_size: 64
+  num_layers: 2
+  dropout: 0.02593318014609408
+  mlp_units: 256
+  mlp_dropout: 0.0958666113073339
+training:
+  learning_rate: 0.0017046669462877568
+  weight_decay: 0.00015530547774728824
+objective_metric: hourly_mape
+objective_value: 37.50804697908262
+best_trial: 25
+n_trials: 30
+validation:
+  best_epoch: 8
+  daily_mape: 17.86728657019534
+  hourly_mape: 37.50804697908262
+  hourly_rmse: 0.4064377455693491
+  skill_vs_naive: 0.29293907381491613
+  train_seconds: 25.9

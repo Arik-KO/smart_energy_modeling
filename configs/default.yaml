@@ -1,0 +1,220 @@
+# Default configuration for the energy forecasting and scheduling project.
+#
+# Every value can be overridden from the command line, for example:
+#   python scripts/check_setup.py --set seed=7 training.batch_size=128
+#
+# Relative paths are resolved against the project root (the folder that
+# contains pyproject.toml), so scripts behave the same from any directory.
+
+project:
+  name: efs
+  runs_dir: runs
+
+seed: 42
+device: auto              # auto | cuda | cpu
+deterministic: true       # reproducible GPU results (slightly slower)
+deterministic_attention: false   # true = bit-exact attention, but needs much more GPU memory
+
+data:
+  energy_file: data/processed/energy_features_2019.csv
+  solar_source: ninja                     # ninja | legacy
+  ninja_file: data/raw/pv_ninja_2019_az135.csv
+  legacy_solar_file: data/processed/solar_2019.csv
+  dataset_file: data/processed/dataset_2019_lst.csv
+  year: 2019
+  timezone: America/Vancouver             # clock time of the demand data
+  standard_offset_hours: -8               # local standard time = UTC-8
+  pv_scale_factor: 1.0                    # 2.5 only for the legacy fallback
+  holiday_country: CA
+  holiday_subdiv: BC
+  splits:
+    train_start: "2019-01-01 00:00"
+    train_end: "2019-10-31 23:00"
+    val_start: "2019-11-01 00:00"
+    val_end: "2019-11-30 23:00"
+    test_start: "2019-12-01 00:00"
+    test_end: "2019-12-30 23:00"
+extra_months:                 # demand-only evaluation on later months (frozen models)
+  raw_dir: data/raw
+  buildings: [23, 24, 25, 27, 28]
+  end: "2020-02-29 23:00"       # stop before the COVID-19 lockdowns (mid-March 2020)
+  dataset_file: data/processed/demand_2019_2020_lst.csv
+  output_dir: runs/final_months
+  months:
+    - {name: "2019-12", start: "2019-12-01 00:00", end: "2019-12-30 23:00"}
+    - {name: "2020-01", start: "2020-01-01 00:00", end: "2020-01-31 23:00"}
+    - {name: "2020-02", start: "2020-02-01 00:00", end: "2020-02-29 23:00"}
+
+
+forecasting:
+  targets: [demand, pv]
+  target_columns:
+    demand: demand_kwh
+    pv: pv_kwh
+  calendar_features:
+    demand: [hour_sin, hour_cos, dow_sin, dow_cos, doy_sin, doy_cos, is_weekend, is_holiday]
+    pv: [hour_sin, hour_cos, doy_sin, doy_cos]
+  architectures: [lstm, dwt_lstm, tnn, dwt_tnn]
+  strategies: [hourly_recursive, dayblock_recursive]
+  strategy_output_hours:
+    hourly_recursive: 1
+    dayblock_recursive: 24
+  window_hours: 336             # default input window; tuned from the candidates
+  stride_hours: 1
+  level_normalization: false    # true: predict deviations from the window's mean level
+  horizons:
+    month_ahead_hours: 720
+    week_ahead_hours: 168
+    week_ahead_origins: ["2019-12-01", "2019-12-08", "2019-12-15", "2019-12-22", "2019-12-29"]
+
+dwt:
+  wavelet: db4
+  level: 3                      # default level
+  level_by_target:              # chosen on November validation (DWT ablation)
+    demand: 2
+    pv: 3
+  mode: symmetric
+  method: approximation         # approximation | soft_threshold
+
+models:                       # default hyperparameters (tuning overrides them)
+  lstm:
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.1
+    mlp_units: 128
+    mlp_dropout: 0.1
+  tnn:
+    d_model: 64
+    num_heads: 4
+    num_layers: 2
+    ff_dim: 128
+    dropout: 0.1
+    mlp_units: 128
+    mlp_dropout: 0.1
+    pooling: mean_last          # mean (paper) | last | mean_last
+
+training:
+  batch_size: 128
+  max_epochs: 100
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  early_stopping_patience: 10
+  gradient_clip: 1.0
+  log_every: 5
+
+evaluation:
+  daylight_threshold_kwh: 0.05  # PV hours below this count as night
+  objective_metric:             # what tuning minimizes (month-ahead, November)
+    demand: hourly_mape
+    pv: daylight_nmae
+
+tuning:
+  n_trials: 30                  # identical budget for every architecture and target
+  strategy: dayblock_recursive  # tuned once; the same hyperparameters serve all horizons
+  max_epochs: 60                # cap per trial (early stopping usually ends sooner)
+  sampler_seed: 0               # TPE sampler seed (reproducible search order)
+  training_seed: 0              # model seed used for every trial
+  pruner_startup_trials: 5      # never prune before this many trials have finished
+  pruner_warmup_epochs: 8       # never prune a trial before this epoch
+  storage_dir: runs/tuning      # SQLite studies here, so an interrupted search resumes
+  output_dir: tuned_params      # best settings per target/architecture (commit these)
+  search_space:
+    common:
+      window_hours: {type: categorical, choices: [168, 336, 672]}
+      learning_rate: {type: float, low: 1.0e-4, high: 3.0e-3, log: true}
+      weight_decay: {type: float, low: 1.0e-6, high: 1.0e-2, log: true}
+      dropout: {type: float, low: 0.0, high: 0.3}
+      mlp_units: {type: categorical, choices: [64, 128, 256]}
+      mlp_dropout: {type: float, low: 0.0, high: 0.3}
+    lstm:
+      hidden_size: {type: categorical, choices: [32, 64, 128]}
+      num_layers: {type: int, low: 1, high: 3}
+    tnn:
+      d_model: {type: categorical, choices: [32, 64, 128]}
+      num_heads: {type: categorical, choices: [2, 4, 8]}
+      num_layers: {type: int, low: 1, high: 4}
+      ff_dim: {type: categorical, choices: [64, 128, 256]}
+
+
+final:                        # final models: tuned settings, several seeds
+  output_dir: runs/final
+  strategies: [dayblock_recursive, hourly_recursive]
+  seeds: [0, 1, 2, 3, 4]
+
+ablation:                     # DWT ablation on the DWT models (tuned settings)
+  output_dir: runs/ablation
+  architectures: [dwt_lstm, dwt_tnn]
+  strategy: dayblock_recursive
+  seeds: [0, 1, 2]
+  wavelets: [haar, db4, sym4]
+  levels: [1, 2, 3]
+  method: approximation
+
+scheduling:
+  resolution: daily
+  tariff:
+    tier1_price: 0.0941
+    tier2_price: 0.1410
+    daily_threshold_kwh: 22.1918   # 1350 kWh per two months, pro-rated daily
+    export_price: 0.0941
+  battery:
+    capacities_kwh: [20, 30, 50]
+    round_trip_efficiency: 0.95
+    initial_soc_fraction: 0.5
+    max_cycles_per_day: 1.0
+    allow_grid_charging: true
+  ga:
+    population_size: 50
+    generations: 100
+    tournament_size: 3
+    crossover_prob: 0.8
+    mutation_rate: 0.1            # probability that a gene (day) is mutated
+    mutation_std_kwh: 5.0
+    elitism: 1
+    seed: 0
+  rule_lookahead_days: 7          # reserve horizon of the [12]-style rule
+  forecast_root: runs/final       # December forecasts saved by evaluate.py
+  forecast_strategy: dayblock_recursive
+  forecast_architectures: [lstm, dwt_lstm, tnn, dwt_tnn]
+  sensitivity:
+    export_prices: [0.0941, 0.05, 0.0]
+
+accuracy_analysis:             # value of forecast accuracy (December, month-ahead plans)
+  capacity_kwh: 20
+  random_error_levels: [0.0, 0.02, 0.05, 0.10, 0.15, 0.20, 0.30]
+  repetitions: 10
+  demand_bias_factors: [0.8, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2]
+  pv_bias_factors: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+  seed: 0
+
+economics:
+  battery_cost_per_kwh: [250, 500, 1000]   # installed-cost scenarios (USD/kWh)
+  lifetime_years: 10
+  discount_rate: 0.05
+  om_per_year: 5.0                # USD/year, as in [12] Table 9
+  emission_factor_kg_per_kwh: 0.01067   # B.C. grid, 10.67 tCO2e/GWh (B.C. methodological guidance)
+
+
+figures:                      # what make_figures.py shows
+  output_dir: figures
+  forecast_archs: [dwt_lstm, tnn, dwt_tnn]   # lines in the December forecast plots
+  pv_drift_seeds: [0, 3]        # stable and diverged PV DWT-LSTM hour-by-hour seeds
+  battery_capacity_kwh: 20
+  battery_arch: dwt_tnn        # forecast shown in the battery schedule figure
+  battery_seed: 0
+
+tables:                       # LaTeX tables written by make_tables.py
+  output_dir: tables
+  style: hline                  # hline (no extra package) | booktabs (needs \usepackage{booktabs})
+
+plotting:                     # paper figure style
+  dpi: 300
+  figsize: [12, 6]
+  tall_figsize: [12, 8]
+  font_size: 10
+  font_weight: bold
+  formats: [png, pdf]           # PNG to view, PDF (vector) for LaTeX
+
+logging:
+  level: INFO               # console
+  file_level: DEBUG         # run.log inside the run folder

@@ -1,0 +1,24 @@
+target: pv
+architecture: lstm
+strategy: dayblock_recursive
+window_hours: 168
+model_params:
+  hidden_size: 128
+  num_layers: 2
+  dropout: 0.01564966313797098
+  mlp_units: 64
+  mlp_dropout: 0.1142497033557208
+training:
+  learning_rate: 0.0007725025472809568
+  weight_decay: 1.6770860225644137e-06
+objective_metric: daylight_nmae
+objective_value: 48.52880974402146
+best_trial: 23
+n_trials: 30
+validation:
+  best_epoch: 18
+  daily_mape: 142.1203951291306
+  hourly_mape: 853.8633522021568
+  hourly_rmse: 0.7038607844481526
+  skill_vs_naive: 0.5286642246858567
+  train_seconds: 30.1

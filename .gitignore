@@ -1,0 +1,14 @@
+# data and generated outputs
+data/
+runs/
+figures/
+tables/
+
+# Python build and cache files
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# logs and notebooks
+*.log
+.ipynb_checkpoints/

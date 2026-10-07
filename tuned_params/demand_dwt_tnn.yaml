@@ -1,0 +1,27 @@
+target: demand
+architecture: dwt_tnn
+strategy: dayblock_recursive
+window_hours: 168
+model_params:
+  d_model: 64
+  num_heads: 4
+  num_layers: 2
+  ff_dim: 128
+  dropout: 0.1859152510486361
+  mlp_units: 128
+  mlp_dropout: 0.05821122899502788
+  pooling: mean_last
+training:
+  learning_rate: 0.001682093035683819
+  weight_decay: 3.0482913299974303e-06
+objective_metric: hourly_mape
+objective_value: 39.63846595367457
+best_trial: 17
+n_trials: 30
+validation:
+  best_epoch: 9
+  daily_mape: 20.159513515667328
+  hourly_mape: 39.63846595367457
+  hourly_rmse: 0.430582280868037
+  skill_vs_naive: 0.25093594374961103
+  train_seconds: 27.0

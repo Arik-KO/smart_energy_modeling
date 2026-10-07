@@ -1,0 +1,27 @@
+target: pv
+architecture: tnn
+strategy: dayblock_recursive
+window_hours: 672
+model_params:
+  d_model: 128
+  num_heads: 4
+  num_layers: 1
+  ff_dim: 64
+  dropout: 0.10602961710293876
+  mlp_units: 256
+  mlp_dropout: 0.0856729071625703
+  pooling: mean_last
+training:
+  learning_rate: 0.0016264003348491155
+  weight_decay: 0.0006163036540793136
+objective_metric: daylight_nmae
+objective_value: 43.20702169509933
+best_trial: 29
+n_trials: 30
+validation:
+  best_epoch: 6
+  daily_mape: 132.8018928808196
+  hourly_mape: 769.6019400422668
+  hourly_rmse: 0.6219171777609661
+  skill_vs_naive: 0.5835372254884569
+  train_seconds: 111.8

@@ -1,0 +1,27 @@
+target: demand
+architecture: tnn
+strategy: dayblock_recursive
+window_hours: 168
+model_params:
+  d_model: 64
+  num_heads: 8
+  num_layers: 4
+  ff_dim: 128
+  dropout: 0.1556028623409817
+  mlp_units: 128
+  mlp_dropout: 0.27694899582712584
+  pooling: mean_last
+training:
+  learning_rate: 0.0008537814835416016
+  weight_decay: 0.000709046031603945
+objective_metric: hourly_mape
+objective_value: 38.813235655307764
+best_trial: 12
+n_trials: 30
+validation:
+  best_epoch: 14
+  daily_mape: 18.44456232729507
+  hourly_mape: 38.813235655307764
+  hourly_rmse: 0.4281408921900225
+  skill_vs_naive: 0.2551831145861597
+  train_seconds: 98.7
