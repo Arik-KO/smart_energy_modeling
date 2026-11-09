@@ -29,3 +29,24 @@ tariff, for an aggregate of five residential buildings in British Columbia, Cana
   battery economics.
 
 ## Planned repository structure
+configs/ experiment settings
+src/efs/ library code
+data/ data loading, time alignment, calendar features, splits
+preprocessing/ train-only scaling and causal wavelet denoising
+forecasting/ windowing, models, training, recursive forecasting, tuning
+evaluation/ metrics, hold-out evaluation, figures and tables
+scheduling/ tariff, battery model, genetic algorithm, rule-based scheduler, LP
+scripts/ command-line entry points for each step of the workflow
+tests/ unit tests, including leakage and energy-conservation tests
+tuned_params/ selected hyperparameters
+
+## Data
+
+The study uses publicly available data, which will not be redistributed here:
+
+- **Demand:** HUE dataset, Harvard Dataverse, doi:10.7910/DVN/N3HGRN
+- **PV:** renewables.ninja (MERRA-2, 2019; settings given in the paper)
+
+## Contact
+
+Arik Anjum Anik — arikanik40@gmail.com
